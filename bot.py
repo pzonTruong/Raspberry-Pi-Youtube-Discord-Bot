@@ -4,10 +4,12 @@ import yt_dlp
 import asyncio
 from datetime import datetime
 import os
-from dotenv import load_dotenv
 
-# Load the secure token from the hidden .env file
-load_dotenv()
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ModuleNotFoundError:
+    pass
 
 # --- Custom Terminal Logger ---
 def log_event(message, level="INFO"):
@@ -140,5 +142,5 @@ async def stop(ctx):
         await ctx.send("[Disconnected] Disconnected and wiped the queue.")
 
 # Grab the secure token and run
-TOKEN = os.getenv('DISCORD_TOKEN')
+TOKEN = os.getenv('DISCORD_TOKEN', 'YOUR_BOT_TOKEN_HERE')
 bot.run(TOKEN)

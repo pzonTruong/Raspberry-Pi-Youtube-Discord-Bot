@@ -54,10 +54,10 @@ bot.run('YOUR_BOT_TOKEN_HERE')
 Create a file named `.env` in the project root with this content:
 
 ```env
-DISCORD_BOT_TOKEN=your_discord_bot_token_here
+DISCORD_TOKEN=your_discord_bot_token_here
 ```
 
-Then run the bot normally. The script loads `DISCORD_BOT_TOKEN` from the environment automatically.
+Then run the bot normally. The script loads `DISCORD_TOKEN` from the environment automatically.
 
 > Keep your `.env` file secret and do not commit it to git. Add `.env` to `.gitignore` if you create one.
 
