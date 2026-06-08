@@ -2,69 +2,98 @@ import discord
 from discord.ext import commands
 import yt_dlp
 import asyncio
+from datetime import datetime
+import os
+from dotenv import load_dotenv
+
+# Load the secure token from the hidden .env file
+load_dotenv()
+
+# --- Custom Terminal Logger ---
+def log_event(message, level="INFO"):
+    colors = {
+        "INFO": "\033[96m",    # Cyan
+        "PLAY": "\033[92m",    # Green
+        "QUEUE": "\033[93m",   # Yellow
+        "SKIP": "\033[95m",    # Magenta
+        "ERROR": "\033[91m",   # Red
+        "RESET": "\033[0m"     # Reset
+    }
+    time_now = datetime.now().strftime("%H:%M:%S")
+    color = colors.get(level, colors["RESET"])
+    print(f"\033[90m[{time_now}]\033[0m {color}[{level}]\033[0m {message}")
 
 intents = discord.Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-# Your optimized yt-dlp and FFmpeg settings
+# Optimized yt-dlp settings (IPv6 bypass and lightweight format)
 ydl_opts = {
     'format': 'bestaudio[ext=m4a]/bestaudio/best',
     'noplaylist': True,
     'quiet': True,
-    'source_address': '0.0.0.0',
+    'source_address': '0.0.0.0', 
 }
 
+# Optimized FFmpeg settings (Single thread limit and buffered streaming)
 ffmpeg_options = {
     'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5 -threads 1',
     'options': '-vn -bufsize 64k'
 }
 
-# --- NEW: Queue Variables ---
 music_queue = []
 is_fetching = False
 
 @bot.event
 async def on_ready():
-    print(f'Logged in as {bot.user}')
+    log_event(f"Logged in successfully as {bot.user}", "INFO")
+    log_event("Waiting for commands...", "INFO")
 
-# --- NEW: Background Queue Manager ---
+# --- Background Queue Manager ---
 async def play_next(ctx):
     global is_fetching
     
-    # Check if there are songs waiting in the list
     if len(music_queue) > 0:
         is_fetching = True
-        url = music_queue.pop(0) # Grab the first song in line
+        url = music_queue.pop(0)
         
         try:
+            log_event(f"Extracting audio data from YouTube...", "INFO")
+            
             def extract_video_info():
                 with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                     return ydl.extract_info(url, download=False)
             
+            # Offload heavy extraction to background thread
             info = await asyncio.to_thread(extract_video_info)
             audio_url = info['url']
             title = info.get('title', 'Audio')
 
-            # The magic trick: When this song finishes, trigger this function again!
             def after_playing(error):
+                if error:
+                    log_event(f"Playback error: {error}", "ERROR")
+                log_event(f"Finished playing: {title}", "INFO")
+                # Trigger the next song automatically
                 asyncio.run_coroutine_threadsafe(play_next(ctx), bot.loop)
 
             source = discord.FFmpegPCMAudio(audio_url, **ffmpeg_options)
             ctx.voice_client.play(source, after=after_playing)
+            
+            log_event(f"Started playing: {title}", "PLAY")
             await ctx.send(f"[Playing] Now playing: {title}")
             
         except Exception as e:
-            await ctx.send(f"An error occurred: {str(e)}")
-            # If a link is broken, skip it and try playing the next one automatically
+            log_event(f"Failed to play track: {str(e)}", "ERROR")
+            await ctx.send(f"[Error] An error occurred: {str(e)}")
+            # Skip broken links and try the next one
             asyncio.run_coroutine_threadsafe(play_next(ctx), bot.loop)
             
         finally:
             is_fetching = False
-            
     else:
-        await ctx.send("The queue is empty.")
+        log_event("Queue is empty. Waiting.", "INFO")
 
+# --- Bot Commands ---
 @bot.command()
 async def play(ctx, url: str):
     global is_fetching
@@ -76,26 +105,24 @@ async def play(ctx, url: str):
     voice_channel = ctx.author.voice.channel
 
     if ctx.voice_client is None:
+        log_event(f"Joining voice channel: {voice_channel.name}", "INFO")
         await voice_channel.connect()
     else:
         await ctx.voice_client.move_to(voice_channel)
 
-    # Add the requested link to the back of the queue
     music_queue.append(url)
     
-    # If the bot is already busy playing/fetching, just tell the user it was added
     if ctx.voice_client.is_playing() or is_fetching:
+        log_event(f"Track added to queue. (Queue size: {len(music_queue)})", "QUEUE")
         await ctx.send(f"[Added] Added to queue! (Position: {len(music_queue)})")
     else:
-        # If the bot is completely quiet, kickstart the queue manager
         await play_next(ctx)
 
-# --- NEW: Skip Command ---
 @bot.command()
 async def skip(ctx):
     if ctx.voice_client and ctx.voice_client.is_playing():
+        log_event("User triggered skip command.", "SKIP")
         await ctx.send("[Skip] Skipping current track...")
-        # Stopping the audio triggers our 'after_playing' function, loading the next song!
         ctx.voice_client.stop() 
     else:
         await ctx.send("Nothing is playing right now.")
@@ -103,14 +130,15 @@ async def skip(ctx):
 @bot.command()
 async def stop(ctx):
     global music_queue
-    # Wipe the list completely so the bot doesn't keep playing after we tell it to stop
+    log_event("User triggered stop command. Wiping queue.", "INFO")
     music_queue.clear() 
     
     if ctx.voice_client:
         ctx.voice_client.stop()
         await ctx.voice_client.disconnect()
-        await ctx.send("Disconnected and wiped the queue.")
-    else:
-        await ctx.send("I am not in a voice channel.")
+        log_event("Disconnected from voice channel.", "INFO")
+        await ctx.send("[Disconnected] Disconnected and wiped the queue.")
 
-bot.run('YOUR_BOT_TOKEN_HERE')
+# Grab the secure token and run
+TOKEN = os.getenv('DISCORD_TOKEN')
+bot.run(TOKEN)
