@@ -41,15 +41,7 @@ pip3 install --upgrade discord.py yt_dlp python-dotenv
 
 ## Configure the bot token
 
-Open `bot.py` and replace `YOUR_BOT_TOKEN_HERE` with your actual Discord bot token, or use a `.env` file.
-
-### Option 1: Hardcode the token (not recommended)
-
-```python
-bot.run('YOUR_BOT_TOKEN_HERE')
-```
-
-### Option 2: Use a `.env` file (recommended)
+The current `bot.py` reads the Discord token from the `DISCORD_TOKEN` environment variable.
 
 Create a file named `.env` in the project root with this content:
 
@@ -99,8 +91,12 @@ Then detach with `Ctrl+A D`.
 In a voice-enabled server channel with the bot present:
 
 - `!play <url>` — add a YouTube or audio URL to the queue and play it.
+- `!pause` — pause or resume playback.
+- `!queue` — show upcoming queue items.
 - `!skip` — skip the current track.
 - `!stop` — stop playback, clear the queue, and disconnect the bot.
+
+The bot also posts interactive playback controls with each track, including Previous, Pause/Resume, Stop, Next, and Show Queue.
 
 Example:
 

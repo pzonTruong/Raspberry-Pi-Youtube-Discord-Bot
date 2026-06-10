@@ -26,10 +26,10 @@ pip install --upgrade pip
 pip install discord.py yt_dlp python-dotenv
 ```
 
-3. Update `bot.py` with your Discord bot token or create a `.env` file:
+3. Create a `.env` file in the project root with your bot token:
 
-```python
-bot.run('YOUR_BOT_TOKEN_HERE')
+```env
+DISCORD_TOKEN=your_discord_bot_token_here
 ```
 
 4. Run the bot:
@@ -41,6 +41,8 @@ python3 bot.py
 ## Commands
 
 - `!play <url>` — queue a YouTube/audio link and play it
+- `!pause` — pause or resume playback
+- `!queue` — show upcoming queue items
 - `!skip` — skip the current track
 - `!stop` — clear the queue and disconnect
 
@@ -51,5 +53,6 @@ See `GUIDE.md` for Raspberry Pi-specific installation and running instructions.
 ## Notes
 
 - The bot requires `ffmpeg` to stream audio.
+- The bot loads its token from the `DISCORD_TOKEN` environment variable, usually set in a `.env` file.
 - Keep your Discord bot token secret.
 - The queue is stored only in memory and resets when the bot restarts.
